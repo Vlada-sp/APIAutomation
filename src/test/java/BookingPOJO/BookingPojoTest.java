@@ -2,6 +2,8 @@ package BookingPOJO;
 
 import BookingPOJO.PojoClasses.BookingDates;
 import BookingPOJO.PojoClasses.CreateBooking;
+import BookingPOJO.PojoClasses.CreateToken;
+import BookingPOJO.PojoClasses.Variables;
 import io.restassured.RestAssured;
 import io.restassured.path.json.JsonPath;
 import org.testng.Assert;
@@ -16,17 +18,40 @@ public class BookingPojoTest {
     String bookingParameter;
     CreateBooking createBooking = new CreateBooking();
     BookingDates bookingDates = new BookingDates();
+    CreateToken createToken = new CreateToken();
+Variables variables = new Variables();
 
 
 
 
     @BeforeClass
     public void setUp(){
+
+
         RestAssured.baseURI = "https://restful-booker.herokuapp.com/";
     pingParameter = "ping";
     tokenParameter = "auth";
     bookingParameter = "booking";
+    createToken();
     }
+
+    public  void createToken(){
+        createToken.setUsername("admin");
+        createToken.setPassword("password1234");
+
+        String tokenResponse =
+        given().log().all()
+                .header("Content-Type","application/json")
+                .body(createToken)
+                .when().post(tokenParameter)
+                .then().log().all()
+                .extract().response().asString();
+
+        JsonPath js = new JsonPath(tokenResponse);
+        variables.setToken(js.getString("token"));
+    }
+
+
 
     @Test
     public void healthCheck (){
@@ -59,13 +84,33 @@ public class BookingPojoTest {
 
 
 
-
+String response =
         given().log().all()
                 .header("Content-Type", "application/json")
                 .body(createBooking)
                 .when().post(bookingParameter)
                 .then().log().all()
-                .assertThat().statusCode(200);
+                .assertThat().statusCode(200)
+                .extract().response().asString();
+
+JsonPath js = new JsonPath(response);
+Assert.assertEquals(js.getString("booking.firstname"), createBooking.getFirstname());
+        Assert.assertEquals(js.getString("booking.lastname"), createBooking.getLastname());
+        Assert.assertEquals(js.getInt("booking.totalprice"),createBooking.getTotalprice());
+        Assert.assertEquals(js.getBoolean("booking.depositpaid"),createBooking.isDepositpaid());
+    }
+
+    @Test
+    public  void  createAnyBooking (){
+        String response =
+                given().log().all()
+                        .header("Content-Type","application/json")
+                        .body(CreateBooking.setRandomPayload())
+                        .when().post(bookingParameter)
+                        .then().log().all()
+                        .assertThat().statusCode(200)
+                        .extract().response().asString();
+
     }
 
 }
